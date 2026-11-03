@@ -1,0 +1,19 @@
+{
+  "name": "wireless-spectrum-buddy",
+  "version": "1.0.0",
+  "description": "Wireless RF Spectrum Buddy on APK.audio",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  },
+  "keywords": [
+    "wireless",
+    "rf",
+    "intermod",
+    "imd",
+    "uhf",
+    "frequency"
+  ],
+  "author": "Anthony Kuzub",
+  "license": "MIT"
+}

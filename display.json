@@ -1,0 +1,8 @@
+{
+  "name": "Wireless RF Spectrum Buddy",
+  "icon": "📡",
+  "group": "Design",
+  "subGroup": "Wireless & RF",
+  "description": "Wireless RF Spectrum Buddy: UHF wireless microphone frequency coordination, 3rd and 5th-order intermodulation distortion (IMD) avoidance, TV channel white space clearance, and antenna distribution calculations.",
+  "app": "APK:Softapps/EDITORS/EDITORS.WirelessBuddy/index.html"
+}
