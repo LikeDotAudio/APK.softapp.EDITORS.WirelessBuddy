@@ -204,8 +204,8 @@ export class WirelessApp {
         <!-- RF Carrier Spike -->
         <line x1="${x}" y1="140" x2="${x}" y2="${y}" stroke="${color}" stroke-width="3"/>
         <circle cx="${x}" cy="${y}" r="4" fill="${color}"/>
-        <text x="${x}" y="${y - 8}" fill="#F0F4F8" font-size="9" font-family="JetBrains Mono, monospace" text-anchor="middle">${ch.freqMHz.toFixed(3)}</text>
-        <text x="${x}" y="${y - 18}" fill="#8B9BB4" font-size="8" font-family="sans-serif" text-anchor="middle">${ch.name}</text>
+        <text x="${x}" y="${y - 8}" fill="#f4f4f5" font-size="9" font-family="JetBrains Mono, monospace" text-anchor="middle">${ch.freqMHz.toFixed(3)}</text>
+        <text x="${x}" y="${y - 18}" fill="#888888" font-size="8" font-family="sans-serif" text-anchor="middle">${ch.name}</text>
       `;
     });
 
@@ -224,27 +224,27 @@ export class WirelessApp {
 
     const svg = `
       <svg viewBox="0 0 ${width} ${height}" width="100%" height="${height}" xmlns="http://www.w3.org/2000/svg">
-        <rect x="0" y="0" width="${width}" height="${height}" fill="#080C16" rx="8"/>
+        <rect x="0" y="0" width="${width}" height="${height}" fill="#121212" rx="8"/>
 
         <!-- Spectrum Axis & Noise Floor (-90 dBm) -->
-        <rect x="50" y="20" width="540" height="120" fill="#0E1424" stroke="#1E2A45" stroke-width="1"/>
+        <rect x="50" y="20" width="540" height="120" fill="#0f0f11" stroke="#2c2c2c" stroke-width="1"/>
         <line x1="50" y1="140" x2="590" y2="140" stroke="#4A9EFF" stroke-width="1.5"/>
 
         <!-- Frequency grid lines -->
-        <line x1="50" y1="20" x2="50" y2="140" stroke="#1E2A45" stroke-width="1"/>
-        <text x="50" y="155" fill="#8B9BB4" font-size="9" font-family="JetBrains Mono, monospace" text-anchor="middle">470.0</text>
+        <line x1="50" y1="20" x2="50" y2="140" stroke="#2c2c2c" stroke-width="1"/>
+        <text x="50" y="155" fill="#888888" font-size="9" font-family="JetBrains Mono, monospace" text-anchor="middle">470.0</text>
 
-        <line x1="185" y1="20" x2="185" y2="140" stroke="#1E2A45" stroke-width="1"/>
-        <text x="185" y="155" fill="#8B9BB4" font-size="9" font-family="JetBrains Mono, monospace" text-anchor="middle">475.0</text>
+        <line x1="185" y1="20" x2="185" y2="140" stroke="#2c2c2c" stroke-width="1"/>
+        <text x="185" y="155" fill="#888888" font-size="9" font-family="JetBrains Mono, monospace" text-anchor="middle">475.0</text>
 
-        <line x1="320" y1="20" x2="320" y2="140" stroke="#1E2A45" stroke-width="1"/>
-        <text x="320" y="155" fill="#8B9BB4" font-size="9" font-family="JetBrains Mono, monospace" text-anchor="middle">480.0</text>
+        <line x1="320" y1="20" x2="320" y2="140" stroke="#2c2c2c" stroke-width="1"/>
+        <text x="320" y="155" fill="#888888" font-size="9" font-family="JetBrains Mono, monospace" text-anchor="middle">480.0</text>
 
-        <line x1="455" y1="20" x2="455" y2="140" stroke="#1E2A45" stroke-width="1"/>
-        <text x="455" y="155" fill="#8B9BB4" font-size="9" font-family="JetBrains Mono, monospace" text-anchor="middle">485.0</text>
+        <line x1="455" y1="20" x2="455" y2="140" stroke="#2c2c2c" stroke-width="1"/>
+        <text x="455" y="155" fill="#888888" font-size="9" font-family="JetBrains Mono, monospace" text-anchor="middle">485.0</text>
 
-        <line x1="590" y1="20" x2="590" y2="140" stroke="#1E2A45" stroke-width="1"/>
-        <text x="590" y="155" fill="#8B9BB4" font-size="9" font-family="JetBrains Mono, monospace" text-anchor="middle">490.0</text>
+        <line x1="590" y1="20" x2="590" y2="140" stroke="#2c2c2c" stroke-width="1"/>
+        <text x="590" y="155" fill="#888888" font-size="9" font-family="JetBrains Mono, monospace" text-anchor="middle">490.0</text>
 
         <!-- Noise floor ripple -->
         <path d="M 50 138 Q 100 137, 150 139 T 250 138 T 350 137 T 450 138 T 550 139 T 590 138" fill="none" stroke="#2B3C5D" stroke-width="1"/>
@@ -255,7 +255,7 @@ export class WirelessApp {
         <!-- Carriers -->
         ${carriersSvg}
 
-        <text x="585" y="32" fill="#8B9BB4" font-size="9" font-family="sans-serif" text-anchor="end">UHF Band IV/V (MHz)</text>
+        <text x="585" y="32" fill="#888888" font-size="9" font-family="sans-serif" text-anchor="end">UHF Band IV/V (MHz)</text>
       </svg>
     `;
 
