@@ -4,8 +4,8 @@
 
    Pure: a thing from APKSoftapp.discovered() and config/discovery.json in, a
    row out. Which leaves hold a channel, frequency, band or SSID is the config's
-   `fields`; a value the scanner did not publish stays empty. */
-import { thingRow } from './discoveredTable.js';
+   `fields`; a value the scanner did not publish stays empty. The rest of the
+   row is the shared Discovered panel's (APKSoftapp.thingRow, vendor/apk-softapp). */
 
 export function field(thing, keys) {
   const fields = thing.fields || {};
@@ -18,10 +18,10 @@ export function field(thing, keys) {
   return '';
 }
 
-export function radioRow(thing, rules = {}) {
+export function radioRow(thing, rules = {}, S = globalThis.APKSoftapp) {
   const f = rules.fields || {};
   return {
-    ...thingRow(thing),
+    ...S.thingRow(thing),
     ssid: field(thing, f.ssid),
     band: field(thing, f.band),
     channel: field(thing, f.channel),

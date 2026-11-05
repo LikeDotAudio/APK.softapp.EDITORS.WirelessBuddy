@@ -60,10 +60,29 @@ test('a Wi-Fi radio on the bus is a row keyed on its MAC with the leaves the con
   disc.ingest(`${dev}/band`, '5 GHz');
   const things = disc.things().filter((t) => rules.kinds.some((k) => t.kinds.some((x) => x.includes(k))));
   assert.equal(things.length, 1);
-  const row = radioRow(things[0], rules);
+  const row = radioRow(things[0], rules, S);
   assert.equal(row.identity, '0c:80:63:11:22:33');
   assert.equal(row.ssid, 'PROD-NET');
   assert.equal(row.channel, '36');
   assert.equal(row.frequency, '', 'not published, not guessed');
   assert.ok(['good', 'kinda', 'dead'].includes(row.state) && row.why);
+});
+
+test('an access point PLUGIN.WIFI files under Network/ is a row too, with the bench leaves (frequency_mhz)', () => {
+  const { S, win } = world({ contracts: true });
+  if (!win.APKContracts) return;
+  const { model: disc, roots } = discovery(S, win, Date.parse('2026-11-04T12:00:00Z'), { collections: rules.collections });
+  // as the bench broker carried it on 2026-11-04 (ROAD-3502)
+  const ap = `${roots.protocols}/wifi/Network/wifi_0e_ac_8a_c1_81_7f`;
+  disc.ingest(`${ap}/device_class`, 'Wi-Fi Access Point');
+  disc.ingest(`${ap}/serial`, '0e:ac:8a:c1:81:7f');
+  disc.ingest(`${ap}/ssid`, 'BELL670');
+  disc.ingest(`${ap}/channel`, '157');
+  disc.ingest(`${ap}/frequency_mhz`, '5785');
+  disc.ingest(`${ap}/band`, '5 GHz');
+  const things = disc.things().filter((t) => rules.kinds.some((k) => t.kinds.some((x) => x.includes(k))));
+  assert.equal(things.length, 1);
+  const row = radioRow(things[0], rules, S);
+  assert.equal(row.identity, '0e:ac:8a:c1:81:7f', 'the BSSID, never an address');
+  assert.deepEqual([row.ssid, row.channel, row.frequency, row.band], ['BELL670', '157', '5785', '5 GHz']);
 });
