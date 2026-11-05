@@ -122,6 +122,7 @@ export class WirelessSpectrumModel {
     if (block.maxFreqMHz !== undefined) this.maxFreqMHz = block.maxFreqMHz;
     if (Array.isArray(block.channels)) {
       this.channels = JSON.parse(JSON.stringify(block.channels));
+      this.nextId = this.channels.reduce((m, c) => Math.max(m, Number(c.id) || 0), 0) + 1;
     }
     this.refreshConflicts();
   }

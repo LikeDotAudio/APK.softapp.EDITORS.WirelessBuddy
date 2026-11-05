@@ -1,0 +1,10 @@
+{
+  "_about": "What Wireless RF Buddy shows from the bus: the radios already on the air near the plan (Wi-Fi access points and radios, and any scanner kind or device_class naming a wireless device). Tunables only: no code holds a device list. `kinds` is matched as in APKSoftapp.discovered (a case-insensitive substring of a protocol, scanner kind or device_class). `fields` names, in order of preference, the leaf a scanner publishes a radio's channel, frequency and band under. They are shown, never copied into the RF plan: a Wi-Fi channel is not a UHF carrier.",
+  "kinds": ["wifi", "wi-fi", "wireless", "radio"],
+  "fields": {
+    "channel": ["channel", "wifi_channel", "chan"],
+    "frequency": ["frequency", "freq_mhz", "freq"],
+    "band": ["band", "radio_band"],
+    "ssid": ["ssid", "network"]
+  }
+}

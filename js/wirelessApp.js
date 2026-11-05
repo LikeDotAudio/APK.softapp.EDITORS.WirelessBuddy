@@ -2,33 +2,62 @@
 // MIT Licence. Free, for everyone, for ever. Full text in LICENSE at the root.
 
 import { WirelessSpectrumModel } from './wirelessModel.js';
-import { BlockBridge } from './blockBridge.js';
+import { radioRow } from './wirelessDiscovered.js';
+import { mountDiscovered, loadRules, THING_COLUMNS } from './discoveredTable.js';
+
+const esc = (s) => window.APKSoftapp.esc(s);
 
 export { WirelessSpectrumModel };
 
 export class WirelessApp {
   constructor() {
     this.model = new WirelessSpectrumModel();
-    this.bridge = new BlockBridge({
-      name: 'Wireless RF Buddy',
-      type: 'rf_coordination',
-      onBlockLoaded: (b, m) => this.handleBlockLoaded(b, m),
-      onBlockChanged: () => this.render()
+    /* The CAD link: cad.like.audio/host@1 through vendor/apk-softapp. Same
+       origin only; standalone, Save downloads the block as .json. */
+    this.host = window.APKSoftapp.connectHost({
+      editor: 'Wireless RF Buddy',
+      blockType: 'rf_coordination',
+      onLoad: (b, m) => this.handleBlockLoaded(b, m),
+      onRequest: () => ({ block: this.model.toBlock(), meta: { name: this.model.planName } }),
     });
 
-    this.tableBody = document.getElementById('rf-table-body');
+    this.tableHost = document.getElementById('rf-table');
     this.svgContainer = document.getElementById('spectrum-svg');
     this.initControls();
     this.render();
     this.autoConnect();
   }
 
+  changed() {
+    this.host.changed(this.model.toBlock());
+  }
+
+  /* The radios already on the air (config/discovery.json kinds and fields),
+     shown beside the plan, never copied into it. */
   async autoConnect() {
-    const discovered = await this.bridge.fetchDiscoveredProject();
-    if (discovered && discovered.wireless && discovered.wireless.length > 0) {
-      this.model.fromBlock(discovered.wireless[0]);
-      this.render();
+    const host = document.getElementById('net-table');
+    const status = document.getElementById('net-status');
+    if (!host) return;
+    let rules;
+    try {
+      rules = await loadRules(import.meta.url);
+    } catch (err) {
+      if (status) { status.setAttribute('data-apk-state', 'dead'); status.textContent = `Could not read config/discovery.json (${err.message}).`; }
+      return;
     }
+    this.network = await mountDiscovered({
+      host, status, id: 'wireless-discovered', kinds: rules.kinds,
+      empty: 'No radio on the bus yet.',
+      columns: [
+        ...THING_COLUMNS.slice(0, 3),
+        { key: 'ssid', label: 'SSID', editable: false },
+        { key: 'band', label: 'Band', editable: false },
+        { key: 'channel', label: 'Channel', editable: false },
+        { key: 'frequency', label: 'Frequency', editable: false, mono: true },
+        THING_COLUMNS[5],
+      ],
+      toRows: (things) => things.map((t) => radioRow(t, rules)),
+    });
   }
 
   handleBlockLoaded(block, meta) {
@@ -42,7 +71,7 @@ export class WirelessApp {
     const btnSave = document.getElementById('btn-save');
     if (btnSave) {
       btnSave.addEventListener('click', () => {
-        this.bridge.saveBlock(this.model.toBlock(), { name: this.model.planName });
+        this.host.save(this.model.toBlock(), { name: this.model.planName, filename: this.model.toBlock().id });
       });
     }
 
@@ -61,6 +90,7 @@ export class WirelessApp {
               const data = JSON.parse(evt.target.result);
               this.model.fromBlock(data);
               this.render();
+              this.changed();
             } catch (err) {
               alert('Invalid block file: ' + err.message);
             }
@@ -73,20 +103,12 @@ export class WirelessApp {
 
     const btnClose = document.getElementById('btn-close');
     if (btnClose) {
-      btnClose.addEventListener('click', () => this.bridge.close());
+      btnClose.addEventListener('click', () => this.host.close());
     }
 
     const btnDiscovered = document.getElementById('btn-discovered');
     if (btnDiscovered) {
-      btnDiscovered.addEventListener('click', async () => {
-        const disc = await this.bridge.fetchDiscoveredProject();
-        if (disc && disc.wireless && disc.wireless.length > 0) {
-          this.model.fromBlock(disc.wireless[0]);
-          this.render();
-        } else {
-          alert('No wireless RF blocks found in current discovered project.');
-        }
-      });
+      btnDiscovered.addEventListener('click', () => document.body.classList.toggle('net-hidden'));
     }
 
     const btnAddCh = document.getElementById('btn-add-rf');
@@ -95,7 +117,7 @@ export class WirelessApp {
         const nextFreq = 475.000 + (this.model.channels.length * 0.800);
         this.model.addChannel(`MIC ${this.model.channels.length + 1}`, nextFreq, 10, 'Main Array');
         this.render();
-        this.bridge.notifyChanged();
+        this.changed();
       });
     }
 
@@ -103,7 +125,7 @@ export class WirelessApp {
     if (propPlanName) {
       propPlanName.addEventListener('input', (e) => {
         this.model.planName = e.target.value;
-        this.bridge.notifyChanged();
+        this.changed();
       });
     }
   }
@@ -133,52 +155,38 @@ export class WirelessApp {
     }
   }
 
+  /* The RF schedule is an APKTable (vendor/apk-table): APKTable.get('wireless-carriers'). */
   renderTable() {
-    if (!this.tableBody) return;
-    this.tableBody.innerHTML = '';
-
-    this.model.channels.forEach((ch, idx) => {
-      const tr = document.createElement('tr');
-      const isConflict = ch.status === 'Conflict';
-
-      tr.innerHTML = `
-        <td style="color: var(--text-muted); font-size: 11px;">#${ch.id}</td>
-        <td class="inline-cell" contenteditable="true" data-idx="${idx}" data-field="name">${ch.name}</td>
-        <td class="inline-cell" contenteditable="true" data-idx="${idx}" data-field="freqMHz">${ch.freqMHz.toFixed(3)}</td>
-        <td class="inline-cell" contenteditable="true" data-idx="${idx}" data-field="powerMw">${ch.powerMw}</td>
-        <td class="inline-cell" contenteditable="true" data-idx="${idx}" data-field="group">${ch.group}</td>
-        <td class="inline-cell" contenteditable="true" data-idx="${idx}" data-field="channel">${ch.channel}</td>
-        <td class="inline-cell" contenteditable="true" data-idx="${idx}" data-field="antennaZone">${ch.antennaZone || 'Main'}</td>
-        <td>
-          <span style="font-weight: bold; font-size: 11px; color: ${isConflict ? '#EF4444' : '#4ADE80'};">
-            ${ch.status}
-          </span>
-        </td>
-        <td style="text-align: center;">
-          <button class="btn-delete" data-idx="${idx}" title="Delete Carrier">✕</button>
-        </td>
-      `;
-
-      this.tableBody.appendChild(tr);
-    });
-
-    this.tableBody.querySelectorAll('[contenteditable=true]').forEach(cell => {
-      cell.addEventListener('blur', (e) => {
-        const idx = parseInt(e.target.dataset.idx, 10);
-        const field = e.target.dataset.field;
-        this.model.updateChannel(idx, field, e.target.innerText.trim());
+    if (!this.tableHost || !window.APKTable) return;
+    if (this.table) { this.table.setRows(this.model.channels); return; }
+    this.table = window.APKTable.create(this.tableHost, {
+      id: 'wireless-carriers',
+      searchPlaceholder: 'Filter carriers',
+      empty: 'No carriers. Add one.',
+      columns: [
+        { key: 'id', label: 'ID', type: 'number', editable: false },
+        { key: 'name', label: 'Transmitter / Performer' },
+        { key: 'freqMHz', label: 'Frequency (MHz)', type: 'number', mono: true,
+          format: (v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(3) : String(v ?? '')) },
+        { key: 'powerMw', label: 'Power (mW)', type: 'number' },
+        { key: 'group', label: 'Group' },
+        { key: 'channel', label: 'Channel' },
+        { key: 'antennaZone', label: 'Antenna Zone' },
+        { key: 'status', label: 'IMD Clearance', editable: false,
+          cellClass: (v) => (v === 'Conflict' ? 'rf-conflict' : 'rf-clear') },
+      ],
+      rows: this.model.channels,
+      onEdit: (i, key, value) => {
+        this.model.updateChannel(i, key, value);
         this.render();
-        this.bridge.notifyChanged();
-      });
-    });
-
-    this.tableBody.querySelectorAll('.btn-delete').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const idx = parseInt(e.target.dataset.idx, 10);
-        this.model.removeChannel(idx);
+        this.changed();
+      },
+      onDelete: (i) => {
+        this.model.channels.splice(i, 1);
+        this.model.refreshConflicts();
         this.render();
-        this.bridge.notifyChanged();
-      });
+        this.changed();
+      },
     });
   }
 
@@ -204,8 +212,8 @@ export class WirelessApp {
         <!-- RF Carrier Spike -->
         <line x1="${x}" y1="140" x2="${x}" y2="${y}" stroke="${color}" stroke-width="3"/>
         <circle cx="${x}" cy="${y}" r="4" fill="${color}"/>
-        <text x="${x}" y="${y - 8}" fill="#f4f4f5" font-size="9" font-family="JetBrains Mono, monospace" text-anchor="middle">${ch.freqMHz.toFixed(3)}</text>
-        <text x="${x}" y="${y - 18}" fill="#888888" font-size="8" font-family="sans-serif" text-anchor="middle">${ch.name}</text>
+        <text x="${x}" y="${y - 8}" fill="#f4f4f5" font-size="9" font-family="JetBrains Mono, monospace" text-anchor="middle">${esc(Number(ch.freqMHz).toFixed(3))}</text>
+        <text x="${x}" y="${y - 18}" fill="#888888" font-size="8" font-family="sans-serif" text-anchor="middle">${esc(ch.name)}</text>
       `;
     });
 
