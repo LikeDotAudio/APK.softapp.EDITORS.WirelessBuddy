@@ -86,3 +86,23 @@ test('an access point PLUGIN.WIFI files under Network/ is a row too, with the be
   assert.equal(row.identity, '0e:ac:8a:c1:81:7f', 'the BSSID, never an address');
   assert.deepEqual([row.ssid, row.channel, row.frequency, row.band], ['BELL670', '157', '5785', '5 GHz']);
 });
+
+test('a carrier a wireless importer files under Device/ is a row with its frequency (ROAD-3519)', () => {
+  const { S, win } = world({ contracts: true });
+  if (!win.APKContracts) return;
+  const { model: disc, roots } = discovery(S, win, Date.parse('2026-11-04T12:00:00Z'), { collections: rules.collections });
+  // the leaves DATATYPE.wireless.SHUREwirelessWorkbench says per carrier (src/carriers.rs LEAVES)
+  const dev = `${roots.protocols}/wireless_wwb/Device/wireless_wwb_plan_0123456789abcdef`;
+  disc.ingest(`${dev}/name`, 'P10T');
+  disc.ingest(`${dev}/device_class`, 'Wireless Transmitter');
+  disc.ingest(`${dev}/frequency_mhz`, '472.550');
+  disc.ingest(`${dev}/channel`, '1');
+  disc.ingest(`${dev}/band`, 'G10');
+  disc.ingest(`${dev}/model`, 'PSM1000');
+  disc.ingest(`${dev}/manufacturer`, 'Shure');
+  const things = disc.things().filter((t) => rules.kinds.some((k) => t.kinds.some((x) => x.includes(k))));
+  assert.equal(things.length, 1);
+  const row = radioRow(things[0], rules, S);
+  assert.deepEqual([row.channel, row.frequency, row.band, row.ssid], ['1', '472.550', 'G10', '']);
+  assert.ok(!/^\d+\.\d+\.\d+\.\d+$/.test(row.identity), 'never an IP');
+});
