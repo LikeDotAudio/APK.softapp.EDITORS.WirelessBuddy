@@ -1,10 +1,28 @@
 {
-  "_about": "What Wireless RF Buddy shows from the bus: the radios already on the air near the plan (Wi-Fi access points and radios, and any scanner kind or device_class naming a wireless device). Tunables only: no code holds a device list. `kinds` is matched as in APKSoftapp.discovered (a case-insensitive substring of a protocol, scanner kind or device_class). `fields` names, in order of preference, the leaf a scanner publishes a radio's channel, frequency and band under. They are shown, never copied into the RF plan: a Wi-Fi channel is not a UHF carrier.",
-  "kinds": ["wifi", "wi-fi", "wireless", "radio"],
+  "_about": "What Wireless RF Buddy shows from the bus: the radios already on the air near the plan. Tunables only: no code holds a device list. `kinds` is matched as in APKSoftapp.discovered (a case-insensitive substring of a protocol, scanner kind or device_class). `collections` are the topic segments things are filed under: PLUGIN.WIFI files this host's radios under wifi/Device/ and every access point it hears under wifi/Network/. `fields` names, in order of preference, the leaf a scanner publishes a radio's channel, frequency, band and SSID under. They are shown, never copied into the RF plan: a Wi-Fi channel is not a UHF carrier.",
+  "_measured": "Bench broker 2026-11-04 (ROAD-3502), 40 s of APK.audio/System/Protocols/#: wifi/Device/wifi_dc_56_7b_2d_ac_c9 (device_class 'Wi-Fi Radio') and 81 wifi/Network/<bssid> (device_class 'Wi-Fi Access Point'), e.g. wifi/Network/wifi_0e_ac_8a_c1_81_7f/channel 157, …/frequency_mhz 5785, …/band '5 GHz', …/ssid BELL670. The leaf is frequency_mhz (not frequency / freq_mhz / freq). These detail leaves are not retained: they are restated every restate_s (30 s), so a radio's row fills on the next pass. 'wireless' is kept for the wireless-mic plugins (wireless_wwb, wireless_ias, wireless_soundbase, wireless_csv, wireless_pdf): all five are online on the bench but publish no Device/ tree yet, so nothing matches it today.",
+  "kinds": [
+    "wifi",
+    "wi-fi",
+    "wireless",
+    "radio"
+  ],
+  "collections": [
+    "Device",
+    "Network"
+  ],
   "fields": {
-    "channel": ["channel", "wifi_channel", "chan"],
-    "frequency": ["frequency", "freq_mhz", "freq"],
-    "band": ["band", "radio_band"],
-    "ssid": ["ssid", "network"]
+    "channel": [
+      "channel"
+    ],
+    "frequency": [
+      "frequency_mhz"
+    ],
+    "band": [
+      "band"
+    ],
+    "ssid": [
+      "ssid"
+    ]
   }
 }
