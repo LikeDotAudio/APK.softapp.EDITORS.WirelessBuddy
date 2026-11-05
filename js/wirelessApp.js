@@ -3,7 +3,6 @@
 
 import { WirelessSpectrumModel } from './wirelessModel.js';
 import { radioRow } from './wirelessDiscovered.js';
-import { mountDiscovered, loadRules, THING_COLUMNS } from './discoveredTable.js';
 
 const esc = (s) => window.APKSoftapp.esc(s);
 
@@ -21,6 +20,26 @@ export class WirelessApp {
       onRequest: () => ({ block: this.model.toBlock(), meta: { name: this.model.planName } }),
     });
 
+    window.APKSoftapp.describe({
+      name: 'Wireless RF Buddy',
+      does: 'Coordinates wireless mic / IEM carriers: frequency, power, group, channel and antenna zone per transmitter, drawn on a spectrum with each carrier\'s intermod (IMD) clearance.',
+      inputs: [
+        { name: 'RF plan block', from: 'the CAD drawing (rf_coordination block) when opened from the CAD', kind: 'cad' },
+        { name: 'Block file', from: 'a .json saved by this editor, picked with Open Block', kind: 'file' },
+        { name: 'Radios on the air', from: 'what the bus has discovered (SSID, band, channel, frequency) — shown beside the plan, never copied in; kinds and fields are config/discovery.json', kind: 'bus' },
+      ],
+      outputs: [
+        { name: 'RF plan block', to: 'the CAD drawing on Save & Return, or a .json download when standalone', kind: 'file' },
+      ],
+      controls: [
+        { name: 'Plan name', how: 'Type in the plan name box (top bar)' },
+        { name: 'Add RF carrier', how: '+ Add RF Carrier (next one 0.8 MHz up)' },
+        { name: 'Edit / delete a carrier', how: 'Edit its cells (name, frequency MHz, power mW, group, channel, antenna zone) or delete the row; IMD clearance re-checks at once' },
+        { name: 'Discovered', how: 'Top-bar button: show / hide the radios the bus knows' },
+        { name: 'Save & Return / Close', how: 'Top-bar buttons' },
+      ],
+      problems: ['file_unreadable', 'bad_json', 'bad_input', 'config_invalid', 'bus_missing', 'device_stale'],
+    });
     this.tableHost = document.getElementById('rf-table');
     this.svgContainer = document.getElementById('spectrum-svg');
     this.initControls();
@@ -40,21 +59,28 @@ export class WirelessApp {
     if (!host) return;
     let rules;
     try {
-      rules = await loadRules(import.meta.url);
+      const cfg = await window.APKSoftapp.discoveredConfig(new URL('../config/discovery.json', import.meta.url), { required: true });
+      if (cfg.problem) throw Object.assign(new Error(cfg.why), { problem: cfg.problem });
+      rules = cfg;
     } catch (err) {
       if (status) { status.setAttribute('data-apk-state', 'dead'); status.textContent = `Could not read config/discovery.json (${err.message}).`; }
+      window.APKSoftapp.showProblem(err.problem || err, {
+        into: status || undefined, subject: 'config/discovery.json', detail: err.message,
+        fix: ['config/discovery.json beside this app says which discovered kinds are radios and which fields hold SSID / band / channel / frequency; it must be served and be valid JSON.'],
+        onRetry: () => this.autoConnect(),
+      });
       return;
     }
-    this.network = await mountDiscovered({
-      host, status, id: 'wireless-discovered', kinds: rules.kinds,
+    this.network = await window.APKSoftapp.discoveredPanel(host, {
+      status, id: 'wireless-discovered', config: rules,
       empty: 'No radio on the bus yet.',
       columns: [
-        ...THING_COLUMNS.slice(0, 3),
+        ...window.APKSoftapp.DISCOVERED_COLUMNS.slice(0, 3),
         { key: 'ssid', label: 'SSID', editable: false },
         { key: 'band', label: 'Band', editable: false },
         { key: 'channel', label: 'Channel', editable: false },
         { key: 'frequency', label: 'Frequency', editable: false, mono: true },
-        THING_COLUMNS[5],
+        window.APKSoftapp.DISCOVERED_COLUMNS[5],
       ],
       toRows: (things) => things.map((t) => radioRow(t, rules)),
     });
@@ -84,17 +110,31 @@ export class WirelessApp {
         input.onchange = (e) => {
           const file = e.target.files[0];
           if (!file) return;
+          const S = window.APKSoftapp;
+          const again = () => input.click();
           const reader = new FileReader();
           reader.onload = (evt) => {
+            let data;
             try {
-              const data = JSON.parse(evt.target.result);
-              this.model.fromBlock(data);
-              this.render();
-              this.changed();
+              data = JSON.parse(evt.target.result);
             } catch (err) {
-              alert('Invalid block file: ' + err.message);
+              S.showProblem('bad_json', { subject: file.name, detail: err.message, onRetry: again });
+              return;
             }
+            if (!data || typeof data !== 'object' || !Array.isArray(data.channels)) {
+              S.showProblem('bad_input', {
+                subject: file.name,
+                detail: 'This is not an RF plan: it has no "channels" list of carriers.',
+                fix: ['Open a .json saved by this editor (Save & Return when standalone downloads one), or start a plan with + Add RF Carrier.'],
+                onRetry: again,
+              });
+              return;
+            }
+            this.model.fromBlock(data);
+            this.render();
+            this.changed();
           };
+          reader.onerror = () => S.showProblem('file_unreadable', { subject: file.name, detail: reader.error && reader.error.message, onRetry: again });
           reader.readAsText(file);
         };
         input.click();
