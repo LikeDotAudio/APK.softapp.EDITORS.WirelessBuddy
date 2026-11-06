@@ -3,6 +3,7 @@
 
 import { WirelessSpectrumModel } from './wirelessModel.js';
 import { radioRow } from './wirelessDiscovered.js';
+import { rfToIfc, rfFromIfc, schemaOf } from './rfIfc.js';
 
 const esc = (s) => window.APKSoftapp.esc(s);
 
@@ -25,20 +26,22 @@ export class WirelessApp {
       does: 'Coordinates wireless mic / IEM carriers: frequency, power, group, channel and antenna zone per transmitter, drawn on a spectrum with each carrier\'s intermod (IMD) clearance.',
       inputs: [
         { name: 'RF plan block', from: 'the CAD drawing (rf_coordination block) when opened from the CAD', kind: 'cad' },
-        { name: 'Block file', from: 'a .json saved by this editor, picked with Open Block', kind: 'file' },
+        { name: 'Plan file', from: 'a .json saved by this editor, or its .ifc twin, picked with Open', kind: 'file' },
         { name: 'Radios on the air', from: 'what the bus has discovered (SSID, band, channel, frequency) — shown beside the plan, never copied in; kinds and fields are config/discovery.json', kind: 'bus' },
       ],
       outputs: [
-        { name: 'RF plan block', to: 'the CAD drawing on Save & Return, or a .json download when standalone', kind: 'file' },
+        { name: 'RF plan block', to: 'the CAD drawing on Save & Return; standalone, rf_<plan>.json beside its .ifc twin (Save Model)', kind: 'file' },
+        { name: 'IFC twin', to: 'rf_<plan>.ifc (IFC4X3_ADD2) with the .json when standalone: each carrier a transmitter and a receiver joined over the air (WIRELESS ports, IfcRelConnectsPorts), frequency and power in APK_RfCarrier, the plan an IfcDistributionSystem', kind: 'file' },
       ],
       controls: [
         { name: 'Plan name', how: 'Type in the plan name box (top bar)' },
         { name: 'Add RF carrier', how: '+ Add RF Carrier (next one 0.8 MHz up)' },
         { name: 'Edit / delete a carrier', how: 'Edit its cells (name, frequency MHz, power mW, group, channel, antenna zone) or delete the row; IMD clearance re-checks at once' },
         { name: 'Discovered', how: 'Top-bar button: show / hide the radios the bus knows' },
-        { name: 'Save & Return / Close', how: 'Top-bar buttons' },
+        { name: 'Open', how: 'Top-bar button: a plan .json or its .ifc twin' },
+        { name: 'Save & Return / Close', how: 'Top-bar buttons; standalone, Save writes the .json and its .ifc twin, both or neither' },
       ],
-      problems: ['file_unreadable', 'bad_json', 'bad_input', 'config_invalid', 'bus_missing', 'device_stale'],
+      problems: ['file_unreadable', 'bad_json', 'bad_input', 'config_invalid', 'bus_missing', 'device_stale', 'save_failed'],
     });
     this.tableHost = document.getElementById('rf-table');
     this.svgContainer = document.getElementById('spectrum-svg');
@@ -93,53 +96,48 @@ export class WirelessApp {
     }
   }
 
+  /** Save: into the CAD when inside it; standalone, the block and its .ifc twin, both or neither (Save Model). */
+  async save() {
+    const block = this.model.toBlock();
+    const meta = { name: this.model.planName, filename: block.id };
+    const S = window.APKSoftapp;
+    if (this.host.embedded || typeof S.saveModel !== 'function') return this.host.save(block, meta);
+    const r = await S.saveModel(block, { name: block.id, toIfc: (b) => rfToIfc(b, { name: block.id }) });
+    if (!r.ok && !r.cancelled) S.showProblem(r.problem || 'save_failed', { onRetry: () => this.save() });
+    return r.ok ? r.via : '';
+  }
+
+  /** Open: a plan .json, or an .ifc (its RF plan, rfIfc.js). */
+  async open() {
+    const S = window.APKSoftapp;
+    const r = await S.openModel({
+      fromIfc: (text) => rfFromIfc(text),
+      fromJson: (data) => {
+        if (!data || typeof data !== 'object' || !Array.isArray(data.channels)) throw new Error('This is not an RF plan: it has no "channels" list of carriers.');
+        return data;
+      },
+    });
+    if (!r.ok) {
+      if (!r.cancelled) S.showProblem(r.problem, {
+        fix: ['Open a .json saved by this editor or its .ifc twin, or start a plan with + Add RF Carrier.'],
+        onRetry: () => this.open(),
+      });
+      return;
+    }
+    this.model.fromBlock(r.model);
+    if (r.kind === 'ifc') document.title = `Wireless RF Buddy · ${r.name} · ${schemaOf(r.text)}`;
+    this.render();
+    this.changed();
+  }
+
   initControls() {
     const btnSave = document.getElementById('btn-save');
     if (btnSave) {
-      btnSave.addEventListener('click', () => {
-        this.host.save(this.model.toBlock(), { name: this.model.planName, filename: this.model.toBlock().id });
-      });
+      btnSave.addEventListener('click', () => { void this.save(); });
     }
 
     const btnOpen = document.getElementById('btn-open');
-    if (btnOpen) {
-      btnOpen.addEventListener('click', () => {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.json';
-        input.onchange = (e) => {
-          const file = e.target.files[0];
-          if (!file) return;
-          const S = window.APKSoftapp;
-          const again = () => input.click();
-          const reader = new FileReader();
-          reader.onload = (evt) => {
-            let data;
-            try {
-              data = JSON.parse(evt.target.result);
-            } catch (err) {
-              S.showProblem('bad_json', { subject: file.name, detail: err.message, onRetry: again });
-              return;
-            }
-            if (!data || typeof data !== 'object' || !Array.isArray(data.channels)) {
-              S.showProblem('bad_input', {
-                subject: file.name,
-                detail: 'This is not an RF plan: it has no "channels" list of carriers.',
-                fix: ['Open a .json saved by this editor (Save & Return when standalone downloads one), or start a plan with + Add RF Carrier.'],
-                onRetry: again,
-              });
-              return;
-            }
-            this.model.fromBlock(data);
-            this.render();
-            this.changed();
-          };
-          reader.onerror = () => S.showProblem('file_unreadable', { subject: file.name, detail: reader.error && reader.error.message, onRetry: again });
-          reader.readAsText(file);
-        };
-        input.click();
-      });
-    }
+    if (btnOpen) btnOpen.addEventListener('click', () => { void this.open(); });
 
     const btnClose = document.getElementById('btn-close');
     if (btnClose) {
